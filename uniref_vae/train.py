@@ -1,6 +1,6 @@
 import torch
 from data import DataModuleKmers
-from transformer_vae_unbounded import InfoTransformerVAE 
+from encoder_only_vae import InfoTransformerVAE 
 import time 
 import wandb 
 import os 
