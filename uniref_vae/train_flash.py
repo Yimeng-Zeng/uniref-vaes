@@ -46,7 +46,7 @@ def train(args_dict):
     val_loader = datamodule.val_dataloader()
 
     model = model.half().cuda()     # not sure if this is necessary, maybe keep model in fp32?
-    model = torch.compile(model)
+    model = torch.compile(model, mode = "max-autotune")
 
     optimizer = torch.optim.Adam([ {'params': model.parameters()} ], lr=args_dict['lr']) 
     lowest_loss = torch.inf 
