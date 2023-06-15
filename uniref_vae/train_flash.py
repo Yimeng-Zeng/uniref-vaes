@@ -51,7 +51,7 @@ def train(args_dict):
     if args_dict['compile'] == True and args_dict['dropout'] == 0.0:
         print("compiling model")
         start_time = time.time()
-        model = torch.compile(model, mode = "max-autotune")
+        model = torch.compile(model, mode = args_dict['compile_mode'])
         print("finished compiling model")
         tracker.log({'time to compile':time.time() - start_time})
         print("Time to compile: ", time.time() - start_time)
@@ -144,6 +144,7 @@ if __name__ == "__main__":
     # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
     parser.add_argument('--dropout', type=float, default=0.05 )
     parser.add_argument('--compile', type=bool, default=True )
+    parser.add_argument('--compile_mode', type=str, default='max-autotune' )
     args = parser.parse_args() 
 
     args_dict = {} 
@@ -162,4 +163,5 @@ if __name__ == "__main__":
     # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
     args_dict['dropout'] = args.dropout
     args_dict['compile'] = args.compile
+    args_dict['compile_mode'] = args.compile_mode
     train(args_dict) 
