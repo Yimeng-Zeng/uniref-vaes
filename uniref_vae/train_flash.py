@@ -35,7 +35,8 @@ def train(args_dict):
         from flash_attention_test import InfoTransformerVAE
         print("using flash vae with bf16")
 
-    model = InfoTransformerVAE(vocab_size=len(datamodule.train.vocab), d_model=args_dict['d_model'], kl_factor=args_dict['kl_factor'])
+    model = InfoTransformerVAE(vocab_size=len(datamodule.train.vocab), d_model=args_dict['d_model'], \
+                               kl_factor=args_dict['kl_factor'], encoder_dropout=args_dict['dropout'], decoder_dropout=args_dict['dropout'])
     print("model created with kl factor: ", args_dict['kl_factor'])
 
     if args_dict['load_ckpt']: 
@@ -45,8 +46,15 @@ def train(args_dict):
     train_loader = datamodule.train_dataloader()
     val_loader = datamodule.val_dataloader()
 
-    model = model.half().cuda()     # not sure if this is necessary, maybe keep model in fp32?
-    model = torch.compile(model, mode = "max-autotune")
+    model = model.cuda()     # no need for casting with .half() when using torch.amp
+
+    if args_dict['compile'] == True and args_dict['dropout'] == 0.0:
+        print("compiling model")
+        start_time = time.time()
+        model = torch.compile(model, mode = "max-autotune")
+        print("finished compiling model")
+        tracker.log({'time to compile':time.time() - start_time})
+        print("Time to compile: ", time.time() - start_time)
 
     optimizer = torch.optim.Adam([ {'params': model.parameters()} ], lr=args_dict['lr']) 
     lowest_loss = torch.inf 
@@ -55,6 +63,9 @@ def train(args_dict):
 
     for epoch in range(args_dict['max_epochs']):
         start_time = time.time() 
+
+        print("Starting training epoch: ", epoch)
+
         model = model.train()  
         sum_train_loss = 0.0 
         num_iters = 0
@@ -86,6 +97,9 @@ def train(args_dict):
         tracker.log({'time for train epoch':time.time() - start_time,
                     'avg_train_loss_per_epoch':avg_train_loss,
                     'epochs completed':epoch+1 }) 
+        
+        print("Finished training epoch: ", epoch)
+        print("Time for epoch: ", time.time() - start_time)
 
         if epoch % args_dict['compute_val_freq'] == 0: 
             start_time = time.time() 
@@ -117,7 +131,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser() 
     parser.add_argument('--debug', type=bool, default=False)  
     parser.add_argument('--lr', type=float, default=0.0001)  
-    parser.add_argument('--compute_val_freq', type=int, default=50 )  
+    parser.add_argument('--compute_val_freq', type=int, default=3 )  
     parser.add_argument('--load_ckpt', default="" )  
     parser.add_argument('--max_epochs', type=int, default=100_000 )  
     parser.add_argument('--num_debug', type=int, default=100 )  
@@ -127,6 +141,9 @@ if __name__ == "__main__":
     parser.add_argument('--vae_type', type=str, default='flash_bf16' ) 
     parser.add_argument('--data_version', type=int, default=1 ) 
     parser.add_argument('--d_model', type=int, default=128 )
+    # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
+    parser.add_argument('--dropout', type=float, default=0.05 )
+    parser.add_argument('--compile', type=bool, default=True )
     args = parser.parse_args() 
 
     args_dict = {} 
@@ -142,4 +159,7 @@ if __name__ == "__main__":
     args_dict['data_version'] = args.data_version 
     args_dict['kl_factor'] = args.kl_factor
     args_dict['vae_type'] = args.vae_type
+    # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
+    args_dict['dropout'] = args.dropout
+    args_dict['compile'] = args.compile
     train(args_dict) 

@@ -54,6 +54,9 @@ def train(args_dict):
     lowest_loss = torch.inf 
     for epoch in range(args_dict['max_epochs']):
         start_time = time.time() 
+
+        print("Starting training epoch: ", epoch)
+
         model = model.train()  
         sum_train_loss = 0.0 
         num_iters = 0
@@ -72,6 +75,9 @@ def train(args_dict):
         tracker.log({'time for train epoch':time.time() - start_time,
                     'avg_train_loss_per_epoch':avg_train_loss,
                     'epochs completed':epoch+1 }) 
+        
+        print("Training epoch: ", epoch, " completed.")
+        print("Time for epoch: ", time.time() - start_time)
 
         if epoch % args_dict['compute_val_freq'] == 0: 
             start_time = time.time() 
@@ -101,12 +107,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser() 
     parser.add_argument('--debug', type=bool, default=False)  
     parser.add_argument('--lr', type=float, default=0.0001)  
-    parser.add_argument('--compute_val_freq', type=int, default=50 )  
+    parser.add_argument('--compute_val_freq', type=int, default=3 )  
     parser.add_argument('--load_ckpt', default="" )  
     parser.add_argument('--max_epochs', type=int, default=100_000 )  
     parser.add_argument('--num_debug', type=int, default=100 )  
     parser.add_argument('--batch_size', type=int, default=128 )  
-    parser.add_argument('--k', type=int, default=3 )  
+    parser.add_argument('--k', type=int, default=1 )  
     parser.add_argument('--kl_factor', type=float, default=0.0001 )
     parser.add_argument('--vae_type', type=str, default='base')
     parser.add_argument('--data_version', type=int, default=1 ) 

@@ -14,6 +14,7 @@ from data import DatasetKmers
 from torch.optim import Adam
 
 torch.set_float32_matmul_precision("medium")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def gumbel_softmax(
     logits: Tensor,
@@ -96,6 +97,8 @@ class InfoTransformerVAE(nn.Module):
         ), "Dont set bottleneck_size to None. Unbounded sequences dont support this yet"
 
         self.max_string_length = 1024 # by default 
+
+        self.device = device
 
         self.vocab_size = vocab_size
 
