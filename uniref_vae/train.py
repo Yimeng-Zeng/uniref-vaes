@@ -1,6 +1,5 @@
 import torch
 from data import DataModuleKmers
-from encoder_only_vae import InfoTransformerVAE 
 import time 
 import wandb 
 import os 
@@ -9,7 +8,7 @@ os.environ["WANDB_SILENT"] = "true"
 
 def start_wandb(args_dict):
     import wandb 
-    tracker = wandb.init(entity="nmaus", project='UNIREF-VAE', config=args_dict) 
+    tracker = wandb.init(entity="yimengz", project='UNIREF-VAE', config=args_dict) 
     print('running', wandb.run.name) 
     return tracker 
 
@@ -17,7 +16,9 @@ def start_wandb(args_dict):
 def train(args_dict):
     print("training") 
     tracker = start_wandb(args_dict) 
-    model_save_path = 'saved_models/' + wandb.run.name + '_model_state.pkl'  
+    model_save_path = 'saved_models/' + wandb.run.name + '/' + wandb.run.name + '_model_state'  
+    if not os.path.exists('saved_models/' + wandb.run.name + '/'):
+        os.makedirs('saved_models/' + wandb.run.name + '/')
     datamodule = DataModuleKmers(args_dict["batch_size"], k=args_dict["k"], version=args_dict['data_version'] ) 
 
     if args_dict['debug']:
@@ -27,7 +28,19 @@ def train(args_dict):
         print('first point:', datamodule.train.data[0]) 
     
     tracker.log({'N train':len(datamodule.train.data)}) 
-    model = InfoTransformerVAE(dataset=datamodule.train, d_model=args_dict['d_model'])
+
+    if args_dict['vae_type'] == 'base':
+        from transformer_vae_unbounded import InfoTransformerVAE
+        print("using base vae")
+    elif args_dict['vae_type'] == 'encoder_only':
+        from encoder_only_vae import InfoTransformerVAE
+        print("using encoder only vae")
+    elif args_dict['vae_type'] == 'embed_only':
+        from embed_only_vae import InfoTransformerVAE
+        print("using embed only vae")
+
+    model = InfoTransformerVAE(dataset=datamodule.train, d_model=args_dict['d_model'], kl_factor=args_dict['kl_factor'])
+    print("model created with kl factor: ", args_dict['kl_factor'])
 
     if args_dict['load_ckpt']: 
         state_dict = torch.load(args_dict['load_ckpt']) # load state dict 
@@ -80,7 +93,7 @@ def train(args_dict):
                 lowest_loss = avg_val_loss 
                 tracker.log({'lowest avg val loss': lowest_loss, 
                                     'saved model at end epoch': epoch+1 }) 
-                torch.save(model.state_dict(), model_save_path) 
+                torch.save(model.state_dict(), model_save_path + '_epoch_' + str(epoch+1) + '.pkl')
 
 
 if __name__ == "__main__":
@@ -94,6 +107,8 @@ if __name__ == "__main__":
     parser.add_argument('--num_debug', type=int, default=100 )  
     parser.add_argument('--batch_size', type=int, default=128 )  
     parser.add_argument('--k', type=int, default=3 )  
+    parser.add_argument('--kl_factor', type=float, default=0.0001 )
+    parser.add_argument('--vae_type', type=str, default='base')
     parser.add_argument('--data_version', type=int, default=1 ) 
     parser.add_argument('--d_model', type=int, default=128 )
     args = parser.parse_args() 
@@ -109,6 +124,8 @@ if __name__ == "__main__":
     args_dict['max_epochs'] = args.max_epochs 
     args_dict['num_debug'] = args.num_debug 
     args_dict['data_version'] = args.data_version 
+    args_dict['kl_factor'] = args.kl_factor
+    args_dict['vae_type'] = args.vae_type
     train(args_dict) 
 
     # CUDA_VISIBLE_DEVICES=4 python3 train.py --debug True --num_debug 1000 --lr 0.001 --compute_val_freq 50 
@@ -118,3 +135,5 @@ if __name__ == "__main__":
     # conda activate lolbo_mols
     # CUDA_VISIBLE_DEVICES=9 python3 train.py --lr 0.001 --compute_val_freq 50 --k 3 --d_model 128 
     # CUDA_VISIBLE_DEVICES=0 python3 train.py --lr 0.0005 --d_model 256  
+
+    # CUDA_VISIBLE_DEVICES=4 python train.py --lr 0.0001 --d_model 8 --batch_size 512 --k 1

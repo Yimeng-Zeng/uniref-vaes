@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F 
 import pandas as pd
 import itertools
+from tqdm import tqdm
 
 
 class DataModuleKmers(pl.LightningDataModule):
@@ -58,7 +59,7 @@ class DatasetKmers(Dataset): # asssuming train data
         
         self.data = []
         if load_data:
-            for seq in regular_data:
+            for seq in tqdm(regular_data):
                 token_num = 0
                 kmer_tokens = []
                 while token_num < len(seq):

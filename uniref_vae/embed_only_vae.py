@@ -158,45 +158,17 @@ class InfoTransformerVAE(pl.LightningModule):
         self.encoder_token_embedding = nn.Embedding(
             num_embeddings=self.vocab_size, embedding_dim=encoder_embedding_dim
         )
-        self.encoder_position_encoding = PositionalEncoding(
-            encoder_embedding_dim, dropout=encoder_dropout, max_len=5_000
-        )
-        
+
         self.decoder_token_unembedding = nn.Parameter(
-            torch.randn(d_model, self.vocab_size)
-        )
-        self.encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                d_model=encoder_embedding_dim,
-                nhead=encoder_nhead,
-                dim_feedforward=encoder_dim_feedforward,
-                dropout=encoder_dropout,
-                activation="gelu",
-                batch_first=True,
-            ),
-            num_layers=encoder_num_layers,
+            torch.randn(decoder_embedding_dim, self.vocab_size)
         )
 
-        
-
-        # also encoder layers, but doing decoder stuff
-        self.decoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                d_model=decoder_embedding_dim,
-                nhead=encoder_nhead,
-                dim_feedforward=encoder_dim_feedforward,
-                dropout=encoder_dropout,
-                activation="gelu",
-                batch_first=True,
-            ),
-            num_layers=encoder_num_layers,
-        )
 
     def sample_prior(self, n):
 
         sequence_length = self.sequence_length
 
-        return torch.randn(n, sequence_length, 8).to(self.device)
+        return torch.randn(n, sequence_length, self.d_model).to(self.device)
 
     def sample_posterior(self, mu, sigma, n=None):
         if n is not None:
@@ -204,37 +176,18 @@ class InfoTransformerVAE(pl.LightningModule):
 
         return mu + torch.randn_like(mu) * sigma
 
-    def generate_pad_mask(self, tokens):
-        """Generate mask that tells encoder to ignore all but first stop token"""
-        mask = tokens == 1
-        inds = mask.float().argmax(
-            dim=-1
-        )  # Returns first index along axis when multiple present
-        mask[torch.arange(0, tokens.shape[0]), inds] = False
-        return mask
 
-    def encode(self, tokens, as_probs=False):
-        if as_probs:
-            embed = tokens @ self.encoder_token_embedding.weight
-        else:
-            embed = self.encoder_token_embedding(tokens)
+    def encode(self, tokens):
+        embed = self.encoder_token_embedding(tokens)
 
-        embed = self.encoder_position_encoding(embed)
-
-        pad_mask = self.generate_pad_mask(tokens)
-        encoding = self.encoder(embed, src_key_padding_mask=pad_mask)
-        mu = encoding[..., : self.d_model]
-        sigma = F.softplus(encoding[..., self.d_model :]) + self.min_posterior_std
+        mu = embed[..., : self.d_model]
+        sigma = F.softplus(embed[..., self.d_model :]) + self.min_posterior_std
 
         return mu, sigma
 
-    def decode(self, z, tokens):
-        
-        pad_mask = self.generate_pad_mask(tokens)
-        
-        decoding = self.decoder(z, src_key_padding_mask=pad_mask)
+    def decode(self, z):
 
-        logits = decoding @ self.decoder_token_unembedding
+        logits = z @ self.decoder_token_unembedding
 
         return logits
 
@@ -317,7 +270,7 @@ class InfoTransformerVAE(pl.LightningModule):
         mu, sigma, z = self.sample_encoding(tokens)
         z_norm = torch.sum(z ** 2, dim=-1).mean() 
 
-        logits = self.decode(z, tokens)
+        logits = self.decode(z)
 
         recon_loss = F.cross_entropy(
             logits.permute(0, 2, 1), tokens, reduction="none"
