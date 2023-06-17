@@ -3,6 +3,7 @@ from data import DataModuleKmers
 import time 
 import wandb 
 import os 
+from tqdm import tqdm
 os.environ["WANDB_SILENT"] = "true" 
 
 torch.set_float32_matmul_precision("medium")
@@ -55,6 +56,8 @@ def train(args_dict):
         print("finished compiling model")
         tracker.log({'time to compile':time.time() - start_time})
         print("Time to compile: ", time.time() - start_time)
+    else:
+        print("not compiling model")
 
     optimizer = torch.optim.Adam([ {'params': model.parameters()} ], lr=args_dict['lr']) 
     lowest_loss = torch.inf 
@@ -69,7 +72,7 @@ def train(args_dict):
         model = model.train()  
         sum_train_loss = 0.0 
         num_iters = 0
-        for data in train_loader:
+        for data in tqdm(train_loader):
             optimizer.zero_grad() 
             input = data.cuda() 
             # cast to bf16
@@ -143,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument('--d_model', type=int, default=128 )
     # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
     parser.add_argument('--dropout', type=float, default=0.05 )
-    parser.add_argument('--compile', type=bool, default=True )
+    parser.add_argument('--compile', type=bool, default=False )
     parser.add_argument('--compile_mode', type=str, default='max-autotune' )
     args = parser.parse_args() 
 

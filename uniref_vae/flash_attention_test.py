@@ -96,7 +96,7 @@ class InfoTransformerVAE(nn.Module):
             bottleneck_size != None
         ), "Dont set bottleneck_size to None. Unbounded sequences dont support this yet"
 
-        self.max_string_length = 1024 # by default 
+        self.max_string_length = 300 # by default 
 
         self.device = device
 

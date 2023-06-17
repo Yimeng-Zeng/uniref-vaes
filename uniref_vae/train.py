@@ -3,6 +3,7 @@ from data import DataModuleKmers
 import time 
 import wandb 
 import os 
+from tqdm import tqdm
 os.environ["WANDB_SILENT"] = "true" 
 
 
@@ -60,7 +61,7 @@ def train(args_dict):
         model = model.train()  
         sum_train_loss = 0.0 
         num_iters = 0
-        for data in train_loader:
+        for data in tqdm(train_loader):
             optimizer.zero_grad() 
             input = data.cuda() 
             out_dict = model(input) 
