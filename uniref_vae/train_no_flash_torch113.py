@@ -6,8 +6,6 @@ import os
 from tqdm import tqdm
 os.environ["WANDB_SILENT"] = "true" 
 
-torch.set_float32_matmul_precision("medium")
-
 
 def start_wandb(args_dict):
     import wandb 
@@ -32,9 +30,15 @@ def train(args_dict):
     
     tracker.log({'N train':len(datamodule.train.data)}) 
 
-    if args_dict['vae_type'] == '16bit':
-        from flash_attention_test import InfoTransformerVAE
+    # Make sure to use the correct vae for different precisions
+    if args_dict['precision'] == 'fp16' or args_dict['precision'] == 'bf16':
+        from vae_16bit import InfoTransformerVAE
         print("using vae with 16bit precision")
+        torch.set_float32_matmul_precision("medium")
+    elif args_dict['precision'] == 'fp32':
+        from vae_32bit import InfoTransformerVAE
+        print("using vae with 32bit precision")
+        torch.set_float32_matmul_precision("highest")
 
     model = InfoTransformerVAE(vocab_size=len(datamodule.train.vocab), d_model=args_dict['d_model'], \
                                kl_factor=args_dict['kl_factor'], encoder_dropout=args_dict['dropout'], decoder_dropout=args_dict['dropout'])
@@ -56,18 +60,28 @@ def train(args_dict):
     if args_dict['gradscale']:
         scaler = torch.cuda.amp.GradScaler()
         print("using gradient scaling")
+    else:
+        print("not using gradient scaling")
 
     if args_dict['precision'] == 'bf16':
         print("using bf16 precision")
+        assert torch.get_float32_matmul_precision() == "medium"
+        print("torch.get_float32_matmul_precision(): ", torch.get_float32_matmul_precision())
     elif args_dict['precision'] == 'fp16':
         print("using fp16 precision")
+        assert torch.get_float32_matmul_precision() == "medium"
+        print("torch.get_float32_matmul_precision(): ", torch.get_float32_matmul_precision())
     elif args_dict['precision'] == 'fp32':
         print("using fp32 precision")
+        assert torch.get_float32_matmul_precision() == "highest"
+        print("torch.get_float32_matmul_precision(): ", torch.get_float32_matmul_precision())
 
-    for epoch in range(args_dict['max_epochs']):
+    for epoch in range(1, args_dict['max_epochs']):
         start_time = time.time() 
 
         print("Starting training epoch: ", epoch)
+
+        torch.cuda.empty_cache()
 
         model = model.train()  
         sum_train_loss = 0.0 
@@ -116,6 +130,9 @@ def train(args_dict):
         print("Time for epoch: ", time.time() - start_time)
 
         if epoch % args_dict['compute_val_freq'] == 0: 
+
+            print("Starting validation epoch: ", epoch)
+
             start_time = time.time() 
             model = model.eval()  
             sum_val_loss = 0.0 
@@ -140,11 +157,18 @@ def train(args_dict):
             avg_val_loss = sum_val_loss/num_val_iters 
             tracker.log({'avg_val_loss':avg_val_loss, 'epochs completed':epoch+1}) 
 
+            # log max memory allocated
+            tracker.log({'max memory allocated':torch.cuda.max_memory_allocated()/(1024**3)})
+            print("max memory allocated: ", torch.cuda.max_memory_allocated()/(1024**3))
+
             if avg_val_loss < lowest_loss: 
                 lowest_loss = avg_val_loss 
                 tracker.log({'lowest avg val loss': lowest_loss, 
                                     'saved model at end epoch': epoch+1 }) 
                 torch.save(model.state_dict(), model_save_path + '_epoch_' + str(epoch+1) + '.pkl')
+
+            print("Finished validation epoch: ", epoch)
+            print("Time for epoch: ", time.time() - start_time)
 
 
 if __name__ == "__main__":

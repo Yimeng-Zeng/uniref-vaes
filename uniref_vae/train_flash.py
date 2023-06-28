@@ -33,7 +33,7 @@ def train(args_dict):
     tracker.log({'N train':len(datamodule.train.data)}) 
 
     if args_dict['vae_type'] == 'flash_bf16':
-        from flash_attention_test import InfoTransformerVAE
+        from vae_16bit import InfoTransformerVAE
         print("using flash vae with bf16")
 
     model = InfoTransformerVAE(vocab_size=len(datamodule.train.vocab), d_model=args_dict['d_model'], \

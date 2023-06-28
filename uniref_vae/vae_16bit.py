@@ -14,6 +14,9 @@ from data import DatasetKmers
 from torch.optim import Adam
 
 torch.set_float32_matmul_precision("medium")
+assert torch.get_float32_matmul_precision() == "medium"
+print("torch.get_float32_matmul_precision(): ", torch.get_float32_matmul_precision())
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def gumbel_softmax(
