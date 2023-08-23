@@ -11,7 +11,7 @@ torch.set_float32_matmul_precision("medium")
 
 def start_wandb(args_dict):
     import wandb 
-    tracker = wandb.init(entity="yimengz", project='UNIREF-VAE', config=args_dict) 
+    tracker = wandb.init(entity="yimengz", project='UNIREF-VAE-Short-Seqs', config=args_dict) 
     print('running', wandb.run.name) 
     return tracker 
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_epochs', type=int, default=100_000 )  
     parser.add_argument('--num_debug', type=int, default=100 )  
     parser.add_argument('--batch_size', type=int, default=128 )  
-    parser.add_argument('--k', type=int, default=3 )  
+    parser.add_argument('--k', type=int, default=1 )  
     parser.add_argument('--kl_factor', type=float, default=0.0001 )
     parser.add_argument('--vae_type', type=str, default='flash_bf16' ) 
     parser.add_argument('--data_version', type=int, default=1 ) 

@@ -13,8 +13,9 @@ from torch.nn import functional as F
 from data import DatasetKmers
 from torch.optim import Adam
 
-torch.set_float32_matmul_precision("medium")
-assert torch.get_float32_matmul_precision() == "medium"
+# not setting to low precision during inference
+# torch.set_float32_matmul_precision("medium")
+# assert torch.get_float32_matmul_precision() == "medium"
 print("torch.get_float32_matmul_precision(): ", torch.get_float32_matmul_precision())
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -239,7 +240,7 @@ class InfoTransformerVAE(nn.Module):
         tokens = torch.zeros(
             n, 1, device=self.device
         ).long()  # Start token is 0, stop token is 1
-        random_gumbels = torch.zeros(n, 0, self.vocab_size, device=self.device)
+        # random_gumbels = torch.zeros(n, 0, self.vocab_size, device=self.device)
         while True:  # Loop until every molecule hits a stop token
             tgt = self.decoder_token_embedding(tokens)
             tgt = self.decoder_position_encoding(tgt)
@@ -256,7 +257,7 @@ class InfoTransformerVAE(nn.Module):
             tokens = torch.cat(
                 [tokens, sample[:, -1, :].argmax(dim=-1)[:, None]], dim=-1
             )
-            random_gumbels = torch.cat([random_gumbels, randoms], dim=1)
+            # random_gumbels = torch.cat([random_gumbels, randoms], dim=1)
 
             # 1 is the stop token. Check if all molecules have a stop token in them
             if (
