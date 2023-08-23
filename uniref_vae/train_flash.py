@@ -51,6 +51,10 @@ def train(args_dict):
         kl_factor=args_dict["kl_factor"],
         encoder_dropout=args_dict["dropout"],
         decoder_dropout=args_dict["dropout"],
+        encoder_dim_feedforward=args_dict["encoder_dim_feedforward"],
+        decoder_dim_feedforward=args_dict["decoder_dim_feedforward"],
+        encoder_num_layers=args_dict["encoder_num_layers"],
+        decoder_num_layers=args_dict["decoder_num_layers"],
     )
     print("model created with kl factor: ", args_dict["kl_factor"])
 
@@ -170,27 +174,15 @@ if __name__ == "__main__":
     parser.add_argument("--vae_type", type=str, default="flash_bf16")
     parser.add_argument("--data_version", type=int, default=1)
     parser.add_argument("--d_model", type=int, default=128)
+    parser.add_argument("--encoder_dim_feedforward", type=int, default=512)
+    parser.add_argument("--decoder_dim_feedforward", type=int, default=512)
+    parser.add_argument("--encoder_num_layers", type=int, default=6)
+    parser.add_argument("--decoder_num_layers", type=int, default=6)
     # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
     parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--compile", type=bool, default=False)
     parser.add_argument("--compile_mode", type=str, default="max-autotune")
     args = parser.parse_args()
 
-    args_dict = {}
-    args_dict["d_model"] = args.d_model
-    args_dict["batch_size"] = args.batch_size
-    args_dict["k"] = args.k
-    args_dict["lr"] = args.lr
-    args_dict["debug"] = args.debug
-    args_dict["compute_val_freq"] = args.compute_val_freq
-    args_dict["load_ckpt"] = args.load_ckpt
-    args_dict["max_epochs"] = args.max_epochs
-    args_dict["num_debug"] = args.num_debug
-    args_dict["data_version"] = args.data_version
-    args_dict["kl_factor"] = args.kl_factor
-    args_dict["vae_type"] = args.vae_type
-    # add compile flag and dropout flag here, torch.compile needs dropout=0 for flash attention
-    args_dict["dropout"] = args.dropout
-    args_dict["compile"] = args.compile
-    args_dict["compile_mode"] = args.compile_mode
+    args_dict = vars(args)  # Simplify the args_dict creation
     train(args_dict)
